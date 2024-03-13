@@ -13,6 +13,8 @@
 #include "cppship/util/log.h"
 #include "cppship/util/repo.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -37,11 +39,15 @@ using namespace fmt::literals;
 
 namespace rng = ranges::views;
 
-int cmd::run_build(const BuildOptions& options)
+int cmd::run_build(BuildContext& ctx, const BuildOptions& options)
 {
-    BuildContext ctx(options.profile);
+    ctx.build_type = options.build_type;
+
     ScopedCurrentDir guard(ctx.root);
-    conan_detect_profile(ctx);
+    if (get_conan_version(ctx) == 2) {
+        //conan_detect_profile(ctx);
+        ctx.conan_profile_path = get_default_profile_path();
+    }
     conan_setup(ctx);
     conan_install(ctx);
     cmake_setup(ctx);
@@ -51,6 +57,41 @@ int cmd::run_build(const BuildOptions& options)
     }
 
     return cmake_build(ctx, options);
+}
+
+int cmd::get_conan_version(const BuildContext&  /*ctx*/) {
+    std::string conan_version = [] {
+        try {
+            return check_output("conan --version");
+        } catch (const RunCmdFailed& ex) {
+            throw Error { "conan not installed!" };
+        }
+    }();
+    const std::string& res = "Conan version ";
+    if (conan_version.find(res) == 0) {
+        conan_version = conan_version.substr(res.size());
+        debug("conan version:{}", conan_version);
+    }
+    int major_ver = std::stoi(conan_version);
+    debug("major_ver:{}", major_ver);
+    return major_ver;
+}
+
+std::string cmd::get_default_profile_path() {
+    std::string conan_default_profile_path = [] {
+        try {
+            return check_output("conan profile path default");
+        } catch (const RunCmdFailed&) {
+            const int res = run_cmd("conan profile detect");
+            if (res != 0) {
+                throw Error { "detect conan profile failed" };
+            }
+            return check_output("conan profile path default");
+        }
+    }();
+    debug("default profile path: {}", conan_default_profile_path);
+    boost::trim(conan_default_profile_path);
+    return conan_default_profile_path;
 }
 
 void cmd::conan_detect_profile(const BuildContext& ctx)
@@ -64,21 +105,8 @@ void cmd::conan_detect_profile(const BuildContext& ctx)
         return;
     }
 
-    status("dependency", "detect profile {}", ctx.profile);
-    std::string conan_default_profile_path = [] {
-        try {
-            return check_output("conan profile path default");
-        } catch (const RunCmdFailed&) {
-            const int res = run_cmd("conan profile detect");
-            if (res != 0) {
-                throw Error { "detect conan profile failed" };
-            }
-
-            return check_output("conan profile path default");
-        }
-    }();
-
-    boost::trim(conan_default_profile_path);
+    status("dependency", "detect profile {}", to_string(ctx.build_type));
+    std::string conan_default_profile_path = get_default_profile_path();
 
     std::ifstream ifs(conan_default_profile_path);
     if (!ifs) {
@@ -90,7 +118,7 @@ void cmd::conan_detect_profile(const BuildContext& ctx)
     bool compiler_detected = false;
     while (std::getline(ifs, line)) {
         if (line.starts_with("build_type")) {
-            line = fmt::format("build_type={}", ctx.profile);
+            line = fmt::format("build_type={}", to_string(ctx.build_type));
         } else if (line.starts_with("compiler.cppstd")) {
             line = fmt::format("compiler.cppstd=20");
         } else if (line.starts_with("compiler=")) {
@@ -192,7 +220,7 @@ void cmd::conan_install(const BuildContext& ctx)
         throw Error { "conan install failed" };
     }
 
-    auto deps = collect_conan_deps(ctx.profile_dir / "conan", ctx.profile);
+    auto deps = collect_conan_deps(ctx.profile_dir / "conan", to_string(ctx.build_type));
     auto cppship_deps = toml::get<ResolvedDependencies>(toml::parse(ctx.git_dep_file));
 
     for (const auto& [name, dep] : cppship_deps) {
@@ -244,7 +272,7 @@ void cmd::cmake_setup(const BuildContext& ctx)
 
     const std::string cmd = fmt::format("cmake -B {} -S build -DCMAKE_BUILD_TYPE={} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "
                                         "-DCONAN_GENERATORS_FOLDER={} -DCPPSHIP_DEPS_DIR={}",
-        ctx.profile_dir.string(), ctx.profile, (ctx.profile_dir / "conan").string(), ctx.deps_dir.string());
+        ctx.profile_dir.string(), to_string(ctx.build_type), (ctx.profile_dir / "conan").string(), ctx.deps_dir.string());
 
     status("config", "config cmake: {}", cmd);
     const int res = run_cmd(cmd);
@@ -294,7 +322,7 @@ std::string_view to_cmake_group(cmd::BuildGroup group, const std::string_view li
 int cmd::cmake_build(const BuildContext& ctx, const BuildOptions& options)
 {
     auto cmd = fmt::format("cmake --build {} -j {} --config {}", ctx.profile_dir.string(), options.max_concurrency,
-        to_string(options.profile));
+        to_string(options.build_type));
     if (options.target) {
         cmd += fmt::format(" --target {}", *options.target);
     } else if (options.groups.empty()) {

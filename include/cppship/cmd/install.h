@@ -5,7 +5,8 @@
 namespace cppship::cmd {
 
 struct InstallOptions {
-    Profile profile = Profile::debug;
+    BuildType build_type = BuildType::debug;
+    std::string profile;
 };
 
 int run_install(const InstallOptions& options);

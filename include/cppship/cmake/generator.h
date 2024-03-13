@@ -50,7 +50,7 @@ private:
 
 private:
     void fill_default_profile_();
-    void fill_profile_(Profile profile);
+    void fill_profile_(BuildType profile);
 
 private:
     std::ostringstream mOut;

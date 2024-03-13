@@ -34,11 +34,14 @@ int run_one_bench(const cmd::BuildContext& ctx, const std::string_view bench)
 
 int cmd::run_bench(const BenchOptions& options)
 {
-    BuildContext ctx(options.profile);
+    BuildContext ctx(options.build_type);
     Manifest manifest(ctx.metafile);
 
     NameTargetMapper mapper;
-    BuildOptions build_options { .profile = options.profile };
+    BuildOptions build_options {
+        .build_type = options.build_type, 
+        .profile = options.profile 
+    };
     if (options.target) {
         if (!ctx.layout.bench(*options.target)) {
             throw Error { fmt::format("bench `{}` not found", *options.target) };
@@ -49,7 +52,7 @@ int cmd::run_bench(const BenchOptions& options)
         build_options.groups.insert(BuildGroup::benches);
     }
 
-    int result = run_build(build_options);
+    int result = run_build(ctx, build_options);
     if (result != 0) {
         return EXIT_FAILURE;
     }

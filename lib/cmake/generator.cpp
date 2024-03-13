@@ -116,8 +116,8 @@ endif()
     fill_default_profile_();
 
     mOut << "\n# profile cpp options\n";
-    fill_profile_(Profile::debug);
-    fill_profile_(Profile::release);
+    fill_profile_(BuildType::debug);
+    fill_profile_(BuildType::release);
 
     mOut << fmt::format(R"(
 # cpp std
@@ -448,7 +448,7 @@ void CmakeGenerator::fill_default_profile_()
     }
 }
 
-void CmakeGenerator::fill_profile_(Profile profile)
+void CmakeGenerator::fill_profile_(BuildType profile)
 {
     const auto& options = mManifest.profile(profile);
     const auto& profile_str = to_string(profile);

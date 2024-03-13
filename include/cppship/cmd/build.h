@@ -20,21 +20,21 @@ enum BuildGroup { lib, binaries, examples, tests, benches };
 
 struct BuildOptions {
     int max_concurrency = gsl::narrow_cast<int>(std::thread::hardware_concurrency());
-    Profile profile = Profile::debug;
+    BuildType build_type = BuildType::debug;
+    std::string profile;
     bool dry_run = false;
     std::optional<std::string> target;
     std::set<BuildGroup> groups;
+    std::optional<std::string> custom_profile;
 };
 
 struct BuildContext {
-    std::string profile = "Debug";
-
+    BuildType build_type = BuildType::debug;
     fs::path root = get_project_root();
     fs::path build_dir = root / kBuildPath;
     fs::path deps_dir = build_dir / "deps";
-    fs::path profile_dir = build_dir / boost::to_lower_copy(profile);
+    fs::path profile_dir = build_dir / boost::to_lower_copy(std::string(to_string(build_type)));
     fs::path metafile = root / "cppship.toml";
-
     fs::path conan_file = build_dir / "conanfile.txt";
     fs::path git_dep_file = build_dir / "git_dep.toml";
     fs::path conan_profile_path = profile_dir / "conan_profile";
@@ -44,8 +44,10 @@ struct BuildContext {
     Manifest manifest { metafile };
     Layout layout { root, manifest.name() };
 
-    explicit BuildContext(Profile profile_)
-        : profile(to_string(profile_))
+    BuildContext() = default;
+
+    explicit BuildContext(BuildType build_type_)
+        : build_type(build_type_)
     {
         if (!fs::exists(build_dir)) {
             fs::create_directories(build_dir);
@@ -58,7 +60,11 @@ struct BuildContext {
     }
 };
 
-int run_build(const BuildOptions& options);
+std::string get_default_profile_path();
+
+int run_build(BuildContext& ctx, const BuildOptions& options);
+
+int get_conan_version(const BuildContext& ctx);
 
 void conan_detect_profile(const BuildContext& ctx);
 

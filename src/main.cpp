@@ -10,6 +10,7 @@
 #include <range/v3/algorithm/find_if.hpp>
 #include <spdlog/spdlog.h>
 
+#include "cppship/core/profile.h"
 #include "cppship/cppship.h"
 #include "cppship/exception.h"
 #include "cppship/util/log.h"
@@ -40,13 +41,28 @@ struct SubCommand {
     int run() { return cmd_runner(parser); }
 };
 
-Profile get_profile(const ArgumentParser& cmd)
+
+BuildType get_build_type(const ArgumentParser& cmd)
+{
+    return cmd.get<bool>("r") ? BuildType::release : BuildType::debug;
+}
+
+std::string get_profile(const ArgumentParser& cmd)
 {
     if (cmd.is_used("profile")) {
-        return parse_profile(cmd.get<std::string>("profile"));
+        return cmd.get<std::string>("profile");
+    }
+    return "Debug";
+}
+
+
+BuildType get_conan_profile(const ArgumentParser& cmd)
+{
+    if (cmd.is_used("conan_profile")) {
+        return parse_profile(cmd.get<std::string>("custom_profile"));
     }
 
-    return cmd.get<bool>("r") ? Profile::release : Profile::debug;
+    return cmd.get<bool>("pr") ? BuildType::release : BuildType::debug;
 }
 
 int get_concurrency(const ArgumentParser& cmd)
@@ -126,9 +142,10 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
         if (cmd.get<bool>("--benches")) {
             groups.insert(cmd::BuildGroup::benches);
         }
-
-        return cmd::run_build({
+        cmd::BuildContext ctx;
+        return cmd::run_build(ctx, {
             .max_concurrency = get_concurrency(cmd),
+            .build_type = get_build_type(cmd),
             .profile = get_profile(cmd),
             .dry_run = cmd.get<bool>("-d"),
             .groups = groups,
@@ -146,7 +163,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
         .help("dry-run, generate compile_commands.json")
         .default_value(false)
         .implicit_value(true);
-    build.parser.add_argument("--profile").help("build with specific profile").default_value(kProfileDebug);
+    build.parser.add_argument("--profile").help("build with specific profile").default_value(kBuildDebug);
     build.parser.add_argument("--examples").help("build all examples").default_value(false).implicit_value(true);
     build.parser.add_argument("--tests").help("build all tests").default_value(false).implicit_value(true);
     build.parser.add_argument("--bins").help("build all binaries").default_value(false).implicit_value(true);
@@ -160,7 +177,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     // install
     auto& install = commands.emplace_back("install", common, [](const ArgumentParser& cmd) {
         return cmd::run_install({
-            .profile = parse_profile(cmd.get("--profile")),
+            .profile = cmd.get("--profile"),
         });
     });
 
@@ -168,12 +185,13 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     install.parser.add_argument("--profile")
         .help("build with specific profile")
         .metavar("profile")
-        .default_value(std::string { kProfileRelease });
+        .default_value(std::string { kBuildRelease });
 
     // run
     auto& run = commands.emplace_back("run", common, [](const ArgumentParser& cmd) {
         const auto remaining = cmd.present<std::vector<std::string>>("--").value_or(std::vector<std::string> {});
         return cmd::run_run({
+            .build_type = get_build_type(cmd),
             .profile = get_profile(cmd),
             .args = boost::join(remaining, " "),
             .bin = cmd.present("--bin"),
@@ -186,7 +204,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     run.parser.add_argument("--profile")
         .help("build with specific profile")
         .metavar("profile")
-        .default_value(kProfileDebug);
+        .default_value(kBuildDebug);
     run.parser.add_argument("--bin").help("name of binary to run").metavar("name");
     run.parser.add_argument("--example").help("name of example to run").metavar("name");
     run.parser.add_argument("--").help("extra args").metavar("args").remaining();
@@ -194,6 +212,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     // test
     auto& test = commands.emplace_back("test", common, [](const ArgumentParser& cmd) {
         return cmd::run_test({
+            .build_type = get_build_type(cmd),
             .profile = get_profile(cmd),
             .target = cmd.present("testname"),
             .name_regex = cmd.present("-R"),
@@ -207,7 +226,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     test.parser.add_argument("--profile")
         .help("build with specific profile")
         .metavar("profile")
-        .default_value(kProfileDebug);
+        .default_value(kBuildDebug);
     test.parser.add_argument("--rerun-failed")
         .help("run only the tests that failed previously")
         .default_value(false)
@@ -217,7 +236,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     // bench
     auto& bench = commands.emplace_back("bench", common, [](const ArgumentParser& cmd) {
         return cmd::run_bench({
-            .profile = parse_profile(cmd.get("--profile")),
+            .profile = cmd.get("--profile"),
             .target = cmd.present("benchname"),
         });
     });
@@ -226,7 +245,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     bench.parser.add_argument("--profile")
         .help("build with specific profile")
         .metavar("profile")
-        .default_value(std::string { kProfileRelease });
+        .default_value(std::string { kBuildRelease });
     bench.parser.add_argument("benchname").help("if specified, only run bench with specified name").nargs(0, 1);
 
     // init

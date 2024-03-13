@@ -57,7 +57,7 @@ int cmd::run_run(const RunOptions& options)
 {
     validate_options(options);
 
-    BuildContext ctx(options.profile);
+    BuildContext ctx(options.build_type);
     Manifest manifest(ctx.metafile);
 
     validate_target(ctx, options);
@@ -65,7 +65,7 @@ int cmd::run_run(const RunOptions& options)
     cmake::NameTargetMapper mapper;
     const auto bin = choose_binary(options, manifest);
     const auto target = options.example ? mapper.example(bin) : bin;
-    const int result = run_build({ .profile = options.profile, .target = target });
+    const int result = run_build(ctx, { .build_type = options.build_type, .profile = options.profile, .target = target });
     if (result != 0) {
         return EXIT_FAILURE;
     }

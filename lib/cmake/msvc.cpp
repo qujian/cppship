@@ -9,7 +9,7 @@ fs::path msvc::fix_bin(const cppship::cmd::BuildContext& ctx, std::string_view b
 {
     const auto profile = read_as_string(ctx.conan_profile_path);
     if (boost::contains(profile, "compiler=msvc")) {
-        return fs::path(ctx.profile) / bin;
+        return fs::path(to_string(ctx.build_type)) / bin;
     }
 
     return bin;

@@ -269,13 +269,13 @@ void Manifest::set_defaults_()
     */
 }
 
-const ProfileOptions& Manifest::profile(Profile prof) const
+const ProfileOptions& Manifest::profile(BuildType prof) const
 {
     switch (prof) {
-    case Profile::debug:
+    case BuildType::debug:
         return mProfileDebug;
 
-    case Profile::release:
+    case BuildType::release:
         return mProfileRelease;
     }
 

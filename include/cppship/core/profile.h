@@ -20,34 +20,34 @@ struct InvalidProfile : public Error {
     }
 };
 
-inline constexpr std::string_view kProfileDebug = "Debug";
-inline constexpr std::string_view kProfileRelease = "Release";
+inline constexpr std::string_view kBuildDebug = "Debug";
+inline constexpr std::string_view kBuildRelease = "Release";
 
-enum class Profile { debug, release };
+enum class BuildType { debug, release };
 
-inline std::string_view to_string(Profile profile)
+inline std::string_view to_string(BuildType profile)
 {
     switch (profile) {
-    case Profile::debug:
-        return kProfileDebug;
+    case BuildType::debug:
+        return kBuildDebug;
 
-    case Profile::release:
-        return kProfileRelease;
+    case BuildType::release:
+        return kBuildRelease;
     }
 
     std::abort();
 }
 
-inline Profile parse_profile(std::string profile)
+inline BuildType parse_profile(std::string profile)
 {
     boost::to_lower(profile);
 
     if (profile == "debug") {
-        return Profile::debug;
+        return BuildType::debug;
     }
 
     if (profile == "release") {
-        return Profile::release;
+        return BuildType::release;
     }
 
     throw InvalidProfile {};

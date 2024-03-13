@@ -44,7 +44,7 @@ public:
     const std::vector<DeclaredDependency>& dev_dependencies() const { return mDevDependencies; }
 
     const ProfileOptions& default_profile() const { return mProfileDefault; }
-    const ProfileOptions& profile(Profile prof) const;
+    const ProfileOptions& profile(BuildType prof) const;
 
 private:
     void set_defaults_();

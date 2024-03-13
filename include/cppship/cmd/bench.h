@@ -8,7 +8,8 @@
 namespace cppship::cmd {
 
 struct BenchOptions {
-    Profile profile = Profile::release;
+    BuildType build_type = BuildType::release;
+    std::string profile;
     std::optional<std::string> target;
 };
 

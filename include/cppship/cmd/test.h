@@ -8,7 +8,8 @@
 namespace cppship::cmd {
 
 struct TestOptions {
-    Profile profile = Profile::debug;
+    BuildType build_type = BuildType::debug;
+    std::string profile;
     std::optional<std::string> target;
     std::optional<std::string> name_regex;
     bool rerun_failed = false;

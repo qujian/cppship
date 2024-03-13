@@ -19,12 +19,14 @@ int cmd::run_install([[maybe_unused]] const InstallOptions& options)
 #ifdef _WINNDOWS
     throw Error { "install is not supported in Windows" };
 #else
-    const int result = run_build({ .profile = options.profile });
+    BuildContext ctx(options.build_type);
+    const int result = run_build(ctx, { 
+        .build_type = options.build_type
+    });
     if (result != 0) {
         return EXIT_FAILURE;
     }
 
-    BuildContext ctx(options.profile);
     Manifest manifest(ctx.metafile);
     const auto bin_file = ctx.profile_dir / manifest.name();
     if (!fs::exists(bin_file)) {
