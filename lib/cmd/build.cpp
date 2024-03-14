@@ -42,11 +42,17 @@ namespace rng = ranges::views;
 int cmd::run_build(BuildContext& ctx, const BuildOptions& options)
 {
     ctx.build_type = options.build_type;
-
     ScopedCurrentDir guard(ctx.root);
-    if (get_conan_version(ctx) == 2) {
-        //conan_detect_profile(ctx);
-        ctx.conan_profile_path = get_default_profile_path();
+    if (options.custom_profile.has_value()) {
+        ctx.conan_profile_path = options.custom_profile.value();
+    } else {
+        ctx.conan_profile_path = "default";
+        // if (get_conan_version(ctx) == 2) {
+        //     //conan_detect_profile(ctx);
+        //     ctx.conan_profile_path = get_default_profile_path();
+        // } else {
+        //     ctx.conan_profile_path = "default";
+        // }
     }
     conan_setup(ctx);
     conan_install(ctx);

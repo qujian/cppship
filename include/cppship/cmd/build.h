@@ -44,8 +44,6 @@ struct BuildContext {
     Manifest manifest { metafile };
     Layout layout { root, manifest.name() };
 
-    BuildContext() = default;
-
     explicit BuildContext(BuildType build_type_)
         : build_type(build_type_)
     {

@@ -13,19 +13,15 @@
 
 using namespace cppship;
 
-int cmd::run_test(const TestOptions& options)
+int cmd::run_test(BuildOptions& build_opts, const TestOptions& options)
 {
     cmake::NameTargetMapper mapper;
-    BuildContext ctx(options.build_type);
-    BuildOptions build_opts { 
-        .build_type = options.build_type, 
-        .profile = options.profile 
-    };
+    BuildContext ctx(build_opts.build_type);
+    
     if (options.target && !options.rerun_failed) {
         if (!ctx.layout.test(*options.target)) {
             throw Error { fmt::format("test `{}` not found", *options.target) };
         }
-
         build_opts.target = mapper.test(*options.target);
     } else {
         build_opts.groups.insert(BuildGroup::tests);

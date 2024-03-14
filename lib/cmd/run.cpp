@@ -1,17 +1,13 @@
 #include <cstdlib>
-#include <thread>
-
 #include <boost/process/system.hpp>
 #include <gsl/narrow>
 #include <spdlog/spdlog.h>
-
 #include "cppship/cmake/msvc.h"
 #include "cppship/cmake/naming.h"
 #include "cppship/cmd/build.h"
 #include "cppship/cmd/run.h"
 #include "cppship/core/manifest.h"
 #include "cppship/util/cmd.h"
-#include "cppship/util/fs.h"
 #include "cppship/util/log.h"
 #include "cppship/util/repo.h"
 
@@ -53,11 +49,11 @@ std::string choose_binary(const cmd::RunOptions& options, const Manifest& manife
 
 }
 
-int cmd::run_run(const RunOptions& options)
+int cmd::run_run(const BuildOptions& build_opts, const RunOptions& options)
 {
     validate_options(options);
 
-    BuildContext ctx(options.build_type);
+    BuildContext ctx(build_opts.build_type);
     Manifest manifest(ctx.metafile);
 
     validate_target(ctx, options);
@@ -65,7 +61,7 @@ int cmd::run_run(const RunOptions& options)
     cmake::NameTargetMapper mapper;
     const auto bin = choose_binary(options, manifest);
     const auto target = options.example ? mapper.example(bin) : bin;
-    const int result = run_build(ctx, { .build_type = options.build_type, .profile = options.profile, .target = target });
+    const int result = run_build(ctx, { .build_type = build_opts.build_type, .profile = build_opts.profile, .target = target });
     if (result != 0) {
         return EXIT_FAILURE;
     }

@@ -10,6 +10,7 @@
 #include <range/v3/algorithm/find_if.hpp>
 #include <spdlog/spdlog.h>
 
+#include "cppship/cmd/build.h"
 #include "cppship/core/profile.h"
 #include "cppship/cppship.h"
 #include "cppship/exception.h"
@@ -47,12 +48,12 @@ BuildType get_build_type(const ArgumentParser& cmd)
     return cmd.get<bool>("r") ? BuildType::release : BuildType::debug;
 }
 
-std::string get_profile(const ArgumentParser& cmd)
+std::optional<std::string> get_profile(const ArgumentParser& cmd)
 {
     if (cmd.is_used("profile")) {
         return cmd.get<std::string>("profile");
     }
-    return "Debug";
+    return std::nullopt;
 }
 
 
@@ -88,9 +89,11 @@ CxxStd parse_cxx_std(const int value)
 std::list<SubCommand> build_commands(const ArgumentParser& common)
 {
     std::list<SubCommand> commands;
-
+    spdlog::set_level(spdlog::level::debug);
+    debug(">>>> common address: {}", fmt::ptr(&common));
     // lint
     auto& lint = commands.emplace_back("lint", common, [](const ArgumentParser& cmd) {
+        debug(">>>> lint cmd address: {}", fmt::ptr(&cmd));
         return cmd::run_lint({
             .all = cmd.get<bool>("all"),
             .cached_only = cmd.get<bool>("cached"),
@@ -99,6 +102,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
         });
     });
 
+    debug(">>>> lint.parser: {}", fmt::ptr(&lint.parser));
     lint.parser.add_description("run clang-tidy on the code");
     lint.parser.add_argument("-a", "--all")
         .help("run on all code, default by diff")
@@ -113,6 +117,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
 
     // fmt
     auto& fmt = commands.emplace_back("fmt", common, [](const ArgumentParser& cmd) {
+        debug(">>>> fmt cmd address: {}", fmt::ptr(&cmd));
         return cmd::run_fmt({
             .all = cmd.get<bool>("all"),
             .cached_only = cmd.get<bool>("cached"),
@@ -127,8 +132,12 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     fmt.parser.add_argument("-f", "--fix").help("fix or check-only(default)").default_value(false).implicit_value(true);
     fmt.parser.add_argument("-c", "--commit").help("run on delta changes against the commit").default_value("HEAD"s);
 
+    ArgumentParser build_common{common};
+    build_common.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
+    build_common.add_argument("--profile").help("build with specific profile");
     // build
-    auto& build = commands.emplace_back("build", common, [](const ArgumentParser& cmd) {
+    auto& build = commands.emplace_back("build", build_common, [](const ArgumentParser& cmd) {
+        debug(">>>> build cmd address: {}", fmt::ptr(&cmd));
         std::set<cmd::BuildGroup> groups;
         if (cmd.get<bool>("--examples")) {
             groups.insert(cmd::BuildGroup::examples);
@@ -142,28 +151,28 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
         if (cmd.get<bool>("--benches")) {
             groups.insert(cmd::BuildGroup::benches);
         }
-        cmd::BuildContext ctx;
+        cmd::BuildContext ctx{get_build_type(cmd)};
         return cmd::run_build(ctx, {
             .max_concurrency = get_concurrency(cmd),
-            .build_type = get_build_type(cmd),
-            .profile = get_profile(cmd),
+            .build_type = ctx.build_type,
             .dry_run = cmd.get<bool>("-d"),
             .groups = groups,
+            .custom_profile = get_profile(cmd),
         });
     });
-
+    debug(">>>> build parser address: {}", fmt::ptr(&build.parser));
     build.parser.add_description("build the project");
     build.parser.add_argument("-j", "--jobs")
         .help("concurrent jobs, default is cpu cores")
         .metavar("N")
         .default_value(gsl::narrow_cast<int>(std::thread::hardware_concurrency()))
         .scan<'d', int>();
-    build.parser.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
+    //build.parser.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
     build.parser.add_argument("-d")
         .help("dry-run, generate compile_commands.json")
         .default_value(false)
         .implicit_value(true);
-    build.parser.add_argument("--profile").help("build with specific profile").default_value(kBuildDebug);
+    build.parser.add_argument("--profile").help("build with specific profile");
     build.parser.add_argument("--examples").help("build all examples").default_value(false).implicit_value(true);
     build.parser.add_argument("--tests").help("build all tests").default_value(false).implicit_value(true);
     build.parser.add_argument("--bins").help("build all binaries").default_value(false).implicit_value(true);
@@ -175,24 +184,26 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     clean.parser.add_description("clean build");
 
     // install
-    auto& install = commands.emplace_back("install", common, [](const ArgumentParser& cmd) {
+    auto& install = commands.emplace_back("install", build_common, [](const ArgumentParser& cmd) {
         return cmd::run_install({
             .profile = cmd.get("--profile"),
         });
     });
 
     install.parser.add_description("install binary if exists");
-    install.parser.add_argument("--profile")
-        .help("build with specific profile")
-        .metavar("profile")
-        .default_value(std::string { kBuildRelease });
+    // install.parser.add_argument("-r")
+    //     .help("build in release mode")
+    //     .default_value(false)
+    //     .implicit_value(true);
 
     // run
-    auto& run = commands.emplace_back("run", common, [](const ArgumentParser& cmd) {
+    auto& run = commands.emplace_back("run", build_common, [](const ArgumentParser& cmd) {
         const auto remaining = cmd.present<std::vector<std::string>>("--").value_or(std::vector<std::string> {});
+
         return cmd::run_run({
             .build_type = get_build_type(cmd),
-            .profile = get_profile(cmd),
+            .custom_profile = get_profile(cmd),
+        }, {
             .args = boost::join(remaining, " "),
             .bin = cmd.present("--bin"),
             .example = cmd.present("--example"),
@@ -200,20 +211,21 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     });
 
     run.parser.add_description("run binary");
-    run.parser.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
-    run.parser.add_argument("--profile")
-        .help("build with specific profile")
-        .metavar("profile")
-        .default_value(kBuildDebug);
+    //run.parser.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
+    // run.parser.add_argument("--profile")
+    //     .help("build with specific profile")
+    //     .metavar("profile");
     run.parser.add_argument("--bin").help("name of binary to run").metavar("name");
     run.parser.add_argument("--example").help("name of example to run").metavar("name");
     run.parser.add_argument("--").help("extra args").metavar("args").remaining();
 
     // test
-    auto& test = commands.emplace_back("test", common, [](const ArgumentParser& cmd) {
-        return cmd::run_test({
+    auto& test = commands.emplace_back("test", build_common, [](const ArgumentParser& cmd) {
+        cmd::BuildOptions opts {
             .build_type = get_build_type(cmd),
-            .profile = get_profile(cmd),
+            .custom_profile = get_profile(cmd),
+        };
+        return cmd::run_test(opts, {
             .target = cmd.present("testname"),
             .name_regex = cmd.present("-R"),
             .rerun_failed = cmd.get<bool>("--rerun-failed"),
@@ -221,12 +233,12 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     });
 
     test.parser.add_description("run tests");
-    test.parser.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
+    //test.parser.add_argument("-r").help("build in release mode").default_value(false).implicit_value(true);
     test.parser.add_argument("-R").help("run tests with name matches the regex").metavar("testregex");
-    test.parser.add_argument("--profile")
-        .help("build with specific profile")
-        .metavar("profile")
-        .default_value(kBuildDebug);
+    // test.parser.add_argument("--profile")
+    //     .help("build with specific profile")
+    //     .metavar("profile");
+
     test.parser.add_argument("--rerun-failed")
         .help("run only the tests that failed previously")
         .default_value(false)
@@ -234,18 +246,21 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     test.parser.add_argument("testname").help("if specified, only run a single test").nargs(0, 1);
 
     // bench
-    auto& bench = commands.emplace_back("bench", common, [](const ArgumentParser& cmd) {
-        return cmd::run_bench({
-            .profile = cmd.get("--profile"),
+    auto& bench = commands.emplace_back("bench", build_common, [](const ArgumentParser& cmd) {
+        cmd::BuildOptions opts {
+            .build_type = get_build_type(cmd),
+            .custom_profile = get_profile(cmd),
+        };
+        return cmd::run_bench(opts, {
             .target = cmd.present("benchname"),
         });
     });
 
     bench.parser.add_description("run benches");
-    bench.parser.add_argument("--profile")
-        .help("build with specific profile")
-        .metavar("profile")
-        .default_value(std::string { kBuildRelease });
+    bench.parser.add_argument("-r")
+        .help("build in release mode")
+        .default_value(false)
+        .implicit_value(true);
     bench.parser.add_argument("benchname").help("if specified, only run bench with specified name").nargs(0, 1);
 
     // init
@@ -303,7 +318,6 @@ try {
 
     ArgumentParser app("cppship", CPPSHIP_VERSION);
     app.add_parents(common);
-
     auto sub_commands = build_commands(common);
     for (auto& cmd : sub_commands) {
         app.add_subparser(cmd.parser);

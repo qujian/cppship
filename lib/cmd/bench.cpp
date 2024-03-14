@@ -32,16 +32,13 @@ int run_one_bench(const cmd::BuildContext& ctx, const std::string_view bench)
 
 }
 
-int cmd::run_bench(const BenchOptions& options)
+int cmd::run_bench(BuildOptions& build_options, const BenchOptions& options)
 {
-    BuildContext ctx(options.build_type);
+    BuildContext ctx(build_options.build_type);
     Manifest manifest(ctx.metafile);
 
     NameTargetMapper mapper;
-    BuildOptions build_options {
-        .build_type = options.build_type, 
-        .profile = options.profile 
-    };
+    
     if (options.target) {
         if (!ctx.layout.bench(*options.target)) {
             throw Error { fmt::format("bench `{}` not found", *options.target) };

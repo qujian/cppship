@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cppship/core/profile.h"
-
+#include "cppship/cmd/build.h"
 namespace cppship::cmd {
 
 struct InstallOptions {
@@ -9,6 +9,6 @@ struct InstallOptions {
     std::string profile;
 };
 
-int run_install(const InstallOptions& options);
+int run_install(const BuildOptions& options);
 
 }

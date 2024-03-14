@@ -13,7 +13,7 @@
 
 using namespace cppship;
 
-int cmd::run_install([[maybe_unused]] const InstallOptions& options)
+int cmd::run_install([[maybe_unused]] const BuildOptions& options)
 {
     // TODO: fix me
 #ifdef _WINNDOWS
