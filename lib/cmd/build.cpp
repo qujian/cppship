@@ -11,15 +11,11 @@
 #include "cppship/util/git.h"
 #include "cppship/util/io.h"
 #include "cppship/util/log.h"
-#include "cppship/util/repo.h"
 
-#include <cstddef>
-#include <cstdint>
 #include <fstream>
 #include <map>
 #include <sstream>
 #include <string>
-
 #include <boost/algorithm/string/find.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
@@ -44,16 +40,16 @@ int cmd::run_build(BuildContext& ctx, const BuildOptions& options)
     ctx.build_type = options.build_type;
     ScopedCurrentDir guard(ctx.root);
     if (options.custom_profile.has_value()) {
-        ctx.conan_profile_path = options.custom_profile.value();
-    } else {
-        ctx.conan_profile_path = "default";
+        ctx.profile = options.custom_profile.value();
+    }
+    // else {
         // if (get_conan_version(ctx) == 2) {
         //     //conan_detect_profile(ctx);
         //     ctx.conan_profile_path = get_default_profile_path();
         // } else {
         //     ctx.conan_profile_path = "default";
         // }
-    }
+    //}
     conan_setup(ctx);
     conan_install(ctx);
     cmake_setup(ctx);
@@ -182,10 +178,10 @@ void cmd::conan_setup(const BuildContext& ctx)
         oss << fmt::format("{}/{}\n", dep.package, desc.version);
     }
 
-    oss << '\n'
-        << "[test_requires]\n"
-        << "gtest/cci.20210126\n"
-        << "benchmark/1.7.1\n";
+    // oss << '\n'
+    //     << "[test_requires]\n"
+    //     << "gtest/cci.20210126\n"
+    //     << "benchmark/1.7.1\n";
     for (const auto& dep : result.conan_dev_dependencies) {
         const auto& desc = std::get<ConanDep>(dep.desc);
         oss << fmt::format("{}/{}\n", dep.package, desc.version);
@@ -218,7 +214,7 @@ void cmd::conan_install(const BuildContext& ctx)
     }
 
     const auto cmd = fmt::format("conan install {} -of {}/conan -pr {} --build=missing", ctx.build_dir.string(),
-        ctx.profile_dir.string(), ctx.conan_profile_path.string());
+        ctx.profile_dir.string(), ctx.profile);
 
     status("dependency", "install dependencies: {}", cmd);
     int res = run_cmd(cmd);

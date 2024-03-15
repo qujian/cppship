@@ -49,7 +49,7 @@ std::string choose_binary(const cmd::RunOptions& options, const Manifest& manife
 
 }
 
-int cmd::run_run(const BuildOptions& build_opts, const RunOptions& options)
+int cmd::run_run(BuildOptions& build_opts, const RunOptions& options)
 {
     validate_options(options);
 
@@ -61,7 +61,8 @@ int cmd::run_run(const BuildOptions& build_opts, const RunOptions& options)
     cmake::NameTargetMapper mapper;
     const auto bin = choose_binary(options, manifest);
     const auto target = options.example ? mapper.example(bin) : bin;
-    const int result = run_build(ctx, { .build_type = build_opts.build_type, .profile = build_opts.profile, .target = target });
+    build_opts.target = target;
+    const int result = run_build(ctx, build_opts);
     if (result != 0) {
         return EXIT_FAILURE;
     }

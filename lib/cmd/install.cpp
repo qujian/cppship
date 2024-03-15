@@ -1,15 +1,11 @@
 #include <cstdlib>
-#include <thread>
-
 #include <gsl/narrow>
 #include <spdlog/spdlog.h>
 
 #include "cppship/cmd/build.h"
 #include "cppship/cmd/install.h"
 #include "cppship/core/manifest.h"
-#include "cppship/util/fs.h"
 #include "cppship/util/log.h"
-#include "cppship/util/repo.h"
 
 using namespace cppship;
 

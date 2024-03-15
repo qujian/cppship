@@ -13,6 +13,6 @@ struct RunOptions {
     std::optional<std::string> example;
 };
 
-int run_run(const BuildOptions& build_opts, const RunOptions& options);
+int run_run(BuildOptions& build_opts, const RunOptions& options);
 
 }

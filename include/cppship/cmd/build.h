@@ -3,7 +3,6 @@
 #include <set>
 #include <string>
 #include <thread>
-
 #include <boost/algorithm/string/case_conv.hpp>
 #include <gsl/narrow>
 
@@ -11,7 +10,6 @@
 #include "cppship/core/layout.h"
 #include "cppship/core/manifest.h"
 #include "cppship/core/profile.h"
-#include "cppship/util/fs.h"
 #include "cppship/util/repo.h"
 
 namespace cppship::cmd {
@@ -21,7 +19,6 @@ enum BuildGroup { lib, binaries, examples, tests, benches };
 struct BuildOptions {
     int max_concurrency = gsl::narrow_cast<int>(std::thread::hardware_concurrency());
     BuildType build_type = BuildType::debug;
-    std::string profile;
     bool dry_run = false;
     std::optional<std::string> target;
     std::set<BuildGroup> groups;
@@ -29,7 +26,8 @@ struct BuildOptions {
 };
 
 struct BuildContext {
-    BuildType build_type = BuildType::debug;
+    BuildType build_type;
+    std::string profile = "default";
     fs::path root = get_project_root();
     fs::path build_dir = root / kBuildPath;
     fs::path deps_dir = build_dir / "deps";
@@ -44,9 +42,7 @@ struct BuildContext {
     Manifest manifest { metafile };
     Layout layout { root, manifest.name() };
 
-    explicit BuildContext(BuildType build_type_)
-        : build_type(build_type_)
-    {
+    explicit BuildContext(BuildType build_type_) : build_type(build_type_)  {
         if (!fs::exists(build_dir)) {
             fs::create_directories(build_dir);
         }

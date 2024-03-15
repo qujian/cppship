@@ -186,7 +186,7 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     // install
     auto& install = commands.emplace_back("install", build_common, [](const ArgumentParser& cmd) {
         return cmd::run_install({
-            .profile = cmd.get("--profile"),
+            .custom_profile = cmd.get("--profile"),
         });
     });
 
@@ -199,11 +199,11 @@ std::list<SubCommand> build_commands(const ArgumentParser& common)
     // run
     auto& run = commands.emplace_back("run", build_common, [](const ArgumentParser& cmd) {
         const auto remaining = cmd.present<std::vector<std::string>>("--").value_or(std::vector<std::string> {});
-
-        return cmd::run_run({
+        cmd::BuildOptions build_opts {
             .build_type = get_build_type(cmd),
             .custom_profile = get_profile(cmd),
-        }, {
+        };
+        return cmd::run_run(build_opts, {
             .args = boost::join(remaining, " "),
             .bin = cmd.present("--bin"),
             .example = cmd.present("--example"),
