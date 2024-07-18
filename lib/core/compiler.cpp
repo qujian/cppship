@@ -74,7 +74,7 @@ CompilerId get_compiler_id(const std::string_view out)
 
 int get_compiler_version(const std::string_view cxx)
 {
-    const auto out = check_output(fmt::format("{} -dumpversion", cxx));
+    const auto out = run_cmd_output(fmt::format("{} -dumpversion", cxx));
 
     std::istringstream iss(out);
     int version = 0;
@@ -110,7 +110,7 @@ CompilerInfo::CompilerInfo()
     : mCommand(detect_compiler_command())
     , mVersion(get_compiler_version(mCommand))
 {
-    const auto out = check_output(fmt::format("{} --version | head -n1", mCommand));
+    const auto out = run_cmd_output(fmt::format("{} --version | head -n1", mCommand));
 
     mId = get_compiler_id(out);
     mLibCxx = get_libcxx(mId);

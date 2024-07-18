@@ -7,7 +7,7 @@ using namespace cppship;
 
 fs::path msvc::fix_bin(const cppship::cmd::BuildContext& ctx, std::string_view bin)
 {
-    const auto profile = check_output(fmt::format("conan profile show {}", ctx.profile));
+    const auto profile = run_cmd_output(fmt::format("conan profile show {}", ctx.profile));
     if (boost::contains(profile, "compiler=msvc")) {
         return fs::path(to_string(ctx.build_type)) / bin;
     }

@@ -26,6 +26,8 @@ inline void require_cmd(std::string_view cmd)
 // output can be suppress by -q
 int run_cmd(std::string_view cmd);
 
-std::string check_output(std::string_view cmd);
+int run_cmd_async(std::string_view cmd);
+
+std::string run_cmd_output(std::string_view cmd);
 
 }

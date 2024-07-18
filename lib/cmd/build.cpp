@@ -43,7 +43,7 @@ int cmd::run_build(BuildContext& ctx, const BuildOptions& options)
         ctx.profile = options.custom_profile.value();
     }
     // else {
-        // if (get_conan_version(ctx) == 2) {
+        // if (get_conan_version() == 2) {
         //     //conan_detect_profile(ctx);
         //     ctx.conan_profile_path = get_default_profile_path();
         // } else {
@@ -61,10 +61,10 @@ int cmd::run_build(BuildContext& ctx, const BuildOptions& options)
     return cmake_build(ctx, options);
 }
 
-int cmd::get_conan_version(const BuildContext&  /*ctx*/) {
+int cmd::get_conan_version() {
     std::string conan_version = [] {
         try {
-            return check_output("conan --version");
+            return run_cmd_output("conan --version");
         } catch (const RunCmdFailed& ex) {
             throw Error { "conan not installed!" };
         }
@@ -82,13 +82,13 @@ int cmd::get_conan_version(const BuildContext&  /*ctx*/) {
 std::string cmd::get_default_profile_path() {
     std::string conan_default_profile_path = [] {
         try {
-            return check_output("conan profile path default");
+            return run_cmd_output("conan profile path default");
         } catch (const RunCmdFailed&) {
             const int res = run_cmd("conan profile detect");
             if (res != 0) {
                 throw Error { "detect conan profile failed" };
             }
-            return check_output("conan profile path default");
+            return run_cmd_output("conan profile path default");
         }
     }();
     debug("default profile path: {}", conan_default_profile_path);
@@ -211,6 +211,13 @@ void cmd::conan_install(const BuildContext& ctx)
     if (!ctx.is_expired(ctx.dependency_file)) {
         debug("dependency is up to date");
         return;
+    }
+
+    if (get_conan_version() < 2) {
+        int res = run_cmd(fmt::format("mkdir -p {}/conan", ctx.profile_dir.string()));
+        if (res != 0) {
+            throw Error { fmt::format("mkdir -p {}/conan failed!", ctx.profile_dir.string()) };
+        }
     }
 
     const auto cmd = fmt::format("conan install {} -of {}/conan -pr {} --build=missing", ctx.build_dir.string(),

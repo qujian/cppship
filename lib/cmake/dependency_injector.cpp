@@ -33,14 +33,12 @@ function(detect_os OS)
     endif()
 endfunction()
 
-
 function(detect_cxx_standard CXX_STANDARD)
     set(${CXX_STANDARD} ${CMAKE_CXX_STANDARD} PARENT_SCOPE)
     if (CMAKE_CXX_EXTENSIONS)
         set(${CXX_STANDARD} "gnu${CMAKE_CXX_STANDARD}" PARENT_SCOPE)
     endif()
 endfunction()
-
 
 function(detect_compiler COMPILER COMPILER_VERSION)
     if(DEFINED CMAKE_CXX_COMPILER_ID)

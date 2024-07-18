@@ -58,7 +58,7 @@ std::string get_default_profile_path();
 
 int run_build(BuildContext& ctx, const BuildOptions& options);
 
-int get_conan_version(const BuildContext& ctx);
+int get_conan_version();
 
 void conan_detect_profile(const BuildContext& ctx);
 

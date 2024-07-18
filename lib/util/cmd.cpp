@@ -16,11 +16,14 @@ bool cppship::has_cmd(std::string_view cmd)
 
 int cppship::run_cmd(const std::string_view cmd)
 {
-    if (spdlog::should_log(spdlog::level::info)) {
-        return system(std::string { cmd }, shell);
-    }
+    status("cmd", "run_cmd: {}", cmd);
+    return system(std::string { cmd }, shell);
+}
 
+int cppship::run_cmd_async(const std::string_view cmd)
+{
     ipstream pipe;
+    status("cmd", "run_cmd_async: {}", cmd);
     child exe(std::string { cmd }, (std_out & std_err) > pipe, shell);
 
     std::string line;
@@ -32,9 +35,10 @@ int cppship::run_cmd(const std::string_view cmd)
     return exe.exit_code();
 }
 
-std::string cppship::check_output(std::string_view cmd)
+std::string cppship::run_cmd_output(std::string_view cmd)
 {
     pstream pipe;
+    status("cmd", "run_cmd_output: {}", cmd);
     const int res = system(std::string(cmd), std_out > pipe, shell);
     if (res != 0) {
         throw RunCmdFailed(res, cmd);
